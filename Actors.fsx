@@ -14,7 +14,7 @@ open Server
 
 let system = System.create "system" <| Configuration.load ()
 let server = spawn system "server" serverActor
-let queue_factory = spawn system "queues" (queueFactoryActor {Hostname="YOUR_HOST_NAME";Username="YOUR_USER_NAME";Password="YOUR_PASSWORD"})
+let queue_factory = spawn system "queues" (queueFactoryActor {Hostname="localhost";Username="guest";Password="guest"})
 
 let client = spawn system "client" (clientActor server)
 let another_client = spawn system "another_client" (clientActor server)
