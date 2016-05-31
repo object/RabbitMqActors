@@ -3,7 +3,9 @@
 #I @".\packages\Akka.1.0.8\lib\net45"
 #I @".\packages\Akka.FSharp.1.0.8\lib\net45"
 #I @".\packages\FsPickler.1.2.21\lib\net45"
+#I @".\packages\System.Collections.Immutable.1.1.36\lib\portable-net45+win8+wp8+wpa81" 
 
+#r "System.Collections.Immutable.dll"
 #r "RabbitMQ.Client.dll"
 #r "Akka.dll"
 #r "Akka.FSharp.dll"
