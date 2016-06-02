@@ -1,0 +1,11 @@
+source https://nuget.org/api/v2
+
+nuget Fake
+nuget Akka
+nuget Akka.FSharp
+nuget FsPickler
+nuget FSPowerPack.Core.Community
+nuget FSPowerPack.Linq.Community
+nuget Newtonsoft.Json
+nuget RabbitMQ.Client
+nuget System.Collections.Immutable
