@@ -1,4 +1,6 @@
-﻿#load "References.fsx"
+﻿#if INTERACTIVE
+
+#load "References.fsx"
 
 open System
 open Akka.Actor
@@ -107,3 +109,5 @@ topic_subscriber <! Disconnect
 
 topic_publisher <! Publish (ContentWithRouting ("Hi 6!", "x.y"))
 topic_publisher <! Disconnect
+
+#endif
