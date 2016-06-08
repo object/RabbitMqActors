@@ -32,6 +32,7 @@
 
     type QueueCommand =
         | Connect
+        | ConnectWithQos of uint16 * uint16
         | Disconnect
         | Subscribe of IActorRef
         | Unsubscribe

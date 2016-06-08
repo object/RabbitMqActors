@@ -28,9 +28,12 @@
                 if not(String.IsNullOrEmpty(queueExchange.ExchangeName)) then 
                     channel.QueueBind(queueExchange.QueueName, queueExchange.ExchangeName, "")
 
-        let connect () =
+        let connect (prefetchCountPerChannel, prefetchCountPerConsumer) =
             let connection = factory.CreateConnection()
             let channel = connection.CreateModel()
+            if prefetchCountPerChannel > 0us then channel.BasicQos(0u, prefetchCountPerChannel, true)
+            if prefetchCountPerConsumer > 0us then channel.BasicQos(0u, prefetchCountPerConsumer, false)
+
             match queueExchange.ExchangeType with
             | Direct -> 
                 declareQueue channel queueExchange
@@ -64,7 +67,11 @@
                 let! message = mailbox.Receive ()
                 match message with
                 | Connect -> 
-                    let (connection, channel) = connect ()
+                    let (connection, channel) = connect (0us, 0us)
+                    return! connected (connection, channel)
+
+                | ConnectWithQos (prefetchCountPerChannel, prefetchCountPerConsumer) -> 
+                    let (connection, channel) = connect (prefetchCountPerChannel, prefetchCountPerConsumer)
                     return! connected (connection, channel)
 
                 | _ -> 
@@ -204,3 +211,6 @@
     let publishMessage<'a> (serializeMessage : ('a -> string)) (queue: IActorRef) (message : 'a) =
         let content = serializeMessage message
         queue <! Publish (content |> Content)
+
+    let queuePublisher<'a> (serializeMessage : ('a -> string)) (queue: IActorRef) =
+        publishMessage<'a> serializeMessage queue
