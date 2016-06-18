@@ -17,7 +17,7 @@
 #load "../RabbitMqActors/Common.fs"
 #load "../RabbitMqActors/QueueTypes.fs"
 #load "../RabbitMqActors/QueueActors.fs"
-#load "../RabbitMqActors/DomainMessages.fs"
+#load "DomainMessages.fs"
 #load "Client.fs"
 #load "Server.fs"
 

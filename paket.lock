@@ -1,6 +1,5 @@
 NUGET
   remote: https://www.nuget.org/api/v2
-  specs:
     Akka (1.0.8)
       Newtonsoft.Json (>= 7.0.1)
       System.Collections.Immutable (>= 1.1.36)
