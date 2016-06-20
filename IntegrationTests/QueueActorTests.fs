@@ -28,14 +28,35 @@ let accumulatorActor (mailbox: Actor<obj>) =
 
 let wait numberOfSeconds = System.Threading.Thread.Sleep(numberOfSeconds * 1000)
 
+let startSystem () =
+    let system = System.create "system" <| Configuration.load ()
+    let queueFactory = spawn system "queues" (queueFactoryActor {Hostname="localhost";Username="guest";Password="guest"})
+    (system, queueFactory)
+
+let stopSystem (system : ActorSystem) =
+    system.Terminate() |> Async.AwaitTask |> Async.RunSynchronously
+
+let createDirectQueue queueFactory queueName exchangeName =
+    let queueParams = { QueueName = queueName; ExchangeName = exchangeName; ExchangeType = Direct; Durable = false; Arguments = null }
+    let (queue : IActorRef) = queueFactory <? CreateExchange (sprintf "direct_%s" queueName, queueParams, false) |> Async.RunSynchronously
+    queue
+
+let createFanoutExchange queueFactory exchangeName =
+    let exchangeParams = { QueueName = ""; ExchangeName = exchangeName; ExchangeType = Fanout; Durable = false; Arguments = null }
+    let (exchange : IActorRef) = queueFactory <? CreateExchange (sprintf "fanout_%s" exchangeName, exchangeParams, true) |> Async.RunSynchronously
+    exchange
+
+let createSubscriber system subcriberName =
+    let accumulator = spawn system (sprintf "accumulator_%s" subcriberName) accumulatorActor
+    let subscriber = spawn system subcriberName (queueReaderActor<string> id accumulator)
+    (subscriber, accumulator)
+
 [<Test>]
 let ``Work queue``() = 
-    let system = System.create "system" <| Configuration.load ()
-    let queuefactory = spawn system "queues" (queueFactoryActor {Hostname="localhost";Username="guest";Password="guest"})
-    let accumulator = spawn system "accumulator" accumulatorActor
-    let subscriber = spawn system "subscriber" (queueReaderActor<string> id accumulator)
-    let queueParams = { QueueName = "hello"; ExchangeName = ""; ExchangeType = Direct; Durable = false; Arguments = null }
-    let (queue : IActorRef) = queuefactory <? CreateExchange ("work", queueParams, false) |> Async.RunSynchronously
+    let (system, queueFactory) = startSystem ()
+    let queue = createDirectQueue queueFactory "hello" ""
+
+    let (subscriber, accumulator) = createSubscriber system "subscriber"
 
     queue <! Connect
     queue <! Subscribe subscriber
@@ -45,22 +66,17 @@ let ``Work queue``() =
 
     let (messages : string list) = accumulator <? Query |> Async.RunSynchronously
     Assert.AreEqual(["Hi!"], messages)
-    system.Terminate() |> Async.AwaitTask |> Async.RunSynchronously
+    stopSystem system
 
 [<Test>]
 let ``Pub/sub``() = 
-    let system = System.create "system" <| Configuration.load ()
-    let queuefactory = spawn system "queues" (queueFactoryActor {Hostname="localhost";Username="guest";Password="guest"})
-    let accumulator1 = spawn system "accumulator1" accumulatorActor
-    let subscriber1 = spawn system "subscriber1" (queueReaderActor<string> id accumulator1)
-    let accumulator2 = spawn system "accumulator2" accumulatorActor
-    let subscriber2 = spawn system "subscriber2" (queueReaderActor<string> id accumulator2)
-    let exchangeParams = { QueueName = ""; ExchangeName = "logs"; ExchangeType = Fanout; Durable = false; Arguments = null }
-    let (exchange : IActorRef) = queuefactory <? CreateExchange ("publisher", exchangeParams, true) |> Async.RunSynchronously
-    let queueParams = { QueueName = "logs1"; ExchangeName = "logs"; ExchangeType = Direct; Durable = false; Arguments = null }
-    let (queue1 : IActorRef) = queuefactory <? CreateExchange ("subscriber1", queueParams, true) |> Async.RunSynchronously
-    let queueParams = { QueueName = "logs2"; ExchangeName = "logs"; ExchangeType = Direct; Durable = false; Arguments = null }
-    let (queue2 : IActorRef) = queuefactory <? CreateExchange ("subscriber2", queueParams, true) |> Async.RunSynchronously
+    let (system, queueFactory) = startSystem ()
+    let exchange = createFanoutExchange queueFactory "logs"
+    let queue1 = createDirectQueue queueFactory "logs1" "logs"
+    let queue2 = createDirectQueue queueFactory "logs2" "logs"
+
+    let (subscriber1, accumulator1) = createSubscriber system "subscriber1"
+    let (subscriber2, accumulator2) = createSubscriber system "subscriber2"
 
     exchange <! Connect
     queue1 <! Connect
@@ -78,4 +94,4 @@ let ``Pub/sub``() =
     Assert.AreEqual(["Hi 2!"; "Hi 1!"], messages)
     let (messages : string list) = accumulator2 <? Query |> Async.RunSynchronously
     Assert.AreEqual(["Hi 2!"; "Hi 1!"], messages)
-    system.Terminate() |> Async.AwaitTask |> Async.RunSynchronously
+    stopSystem system
