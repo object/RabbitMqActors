@@ -3,14 +3,22 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 14
 VisualStudioVersion = 14.0.25123.0
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{f2a71f9b-5d33-465a-a702-920d77279786}") = "RabbitMqActors", "RabbitMqActors\RabbitMqActors.fsproj", "{B30FAA02-88EB-4266-8192-CC00CAC19165}"
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "RabbitMqActors", "RabbitMqActors\RabbitMqActors.fsproj", "{B30FAA02-88EB-4266-8192-CC00CAC19165}"
 EndProject
-Project("{f2a71f9b-5d33-465a-a702-920d77279786}") = "Examples", "Examples\Examples.fsproj", "{D32E9854-E735-4265-8473-F989914D7F9A}"
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Examples", "Examples\Examples.fsproj", "{D32E9854-E735-4265-8473-F989914D7F9A}"
+EndProject
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "IntegrationTests", "IntegrationTests\IntegrationTests.fsproj", "{65833DAB-FEAD-45E7-BE0E-DB368D68DA5F}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{64B68F31-4386-4C6D-8F35-38A1D2B75B1A}"
+	ProjectSection(SolutionItems) = preProject
+		build.cmd = build.cmd
+		build.fsx = build.fsx
+		build.sh = build.sh
+		paket.dependencies = paket.dependencies
+		paket.lock = paket.lock
+	EndProjectSection
 EndProject
 Global
-	GlobalSection(SolutionProperties) = preSolution
-		HideSolutionNode = FALSE
-	EndGlobalSection
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
 		Release|Any CPU = Release|Any CPU
@@ -24,5 +32,12 @@ Global
 		{D32E9854-E735-4265-8473-F989914D7F9A}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{D32E9854-E735-4265-8473-F989914D7F9A}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{D32E9854-E735-4265-8473-F989914D7F9A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{65833DAB-FEAD-45E7-BE0E-DB368D68DA5F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{65833DAB-FEAD-45E7-BE0E-DB368D68DA5F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{65833DAB-FEAD-45E7-BE0E-DB368D68DA5F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{65833DAB-FEAD-45E7-BE0E-DB368D68DA5F}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
 	EndGlobalSection
 EndGlobal

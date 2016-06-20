@@ -9,3 +9,5 @@ nuget FSPowerPack.Linq.Community
 nuget Newtonsoft.Json
 nuget RabbitMQ.Client
 nuget System.Collections.Immutable
+nuget NUnit
+nuget NUnit.Runners

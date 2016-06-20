@@ -14,6 +14,18 @@ NUGET
     FSPowerPack.Linq.Community (3.0)
       FSPowerPack.Core.Community
     Newtonsoft.Json (8.0.3)
+    NUnit (3.2.1)
+    NUnit.ConsoleRunner (3.2.1)
+    NUnit.Extension.NUnitProjectLoader (3.2.1)
+    NUnit.Extension.NUnitV2Driver (3.2.1)
+    NUnit.Extension.NUnitV2ResultWriter (3.2.1)
+    NUnit.Extension.VSProjectLoader (3.2.1)
+    NUnit.Runners (3.2.1)
+      NUnit.ConsoleRunner (3.2.1)
+      NUnit.Extension.NUnitProjectLoader (3.2.1)
+      NUnit.Extension.NUnitV2Driver (3.2.1)
+      NUnit.Extension.NUnitV2ResultWriter (3.2.1)
+      NUnit.Extension.VSProjectLoader (3.2.1)
     RabbitMQ.Client (3.6.2)
     System.Collections (4.0.10) - framework: dnxcore50
       System.Diagnostics.Debug (>= 4.0) - framework: dnxcore50
