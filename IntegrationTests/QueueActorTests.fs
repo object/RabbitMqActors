@@ -37,13 +37,13 @@ let stopSystem (system : ActorSystem) =
     system.Terminate() |> Async.AwaitTask |> Async.RunSynchronously
 
 let createQueue queueFactory queueName exchangeName exchangeType =
-    let queueParams = { QueueName = queueName; ExchangeName = exchangeName; ExchangeType = exchangeType; Durable = true; Arguments = null }
+    let queueParams = { QueueName = queueName; ExchangeName = exchangeName; ExchangeType = exchangeType; Durable = false; Arguments = null }
     let (queue : IActorRef) = queueFactory <? CreateExchange (sprintf "queue_%s" queueName, queueParams, false) |> Async.RunSynchronously
     wait 100
     queue
 
 let createExchange queueFactory exchangeName exchangeType =
-    let exchangeParams = { QueueName = ""; ExchangeName = exchangeName; ExchangeType = exchangeType; Durable = true; Arguments = null }
+    let exchangeParams = { QueueName = ""; ExchangeName = exchangeName; ExchangeType = exchangeType; Durable = false; Arguments = null }
     let (exchange : IActorRef) = queueFactory <? CreateExchange (sprintf "exchange_%s" exchangeName, exchangeParams, true) |> Async.RunSynchronously
     wait 100
     exchange
@@ -108,6 +108,35 @@ let ``Pub/sub``() =
 
 [<Test>]
 let ``Routing``() = 
+    let (system, queueFactory) = startSystem ()
+    let exchange = createExchange queueFactory "routing_logs" Topic
+    let queue1 = createQueue queueFactory "routing_logs1" "routing_logs" Topic
+    let queue2 = createQueue queueFactory "routing_logs2" "routing_logs" Topic
+
+    let (subscriber1, accumulator1) = createSubscriber system "subscriber1"
+    let (subscriber2, accumulator2) = createSubscriber system "subscriber2"
+
+    connect [exchange; queue1; queue2]
+    subscribe [(queue1, subscriber1); (queue2, subscriber2)]
+
+    queue1 <! Route "a"
+    queue2 <! Route "b"
+
+    exchange <! Publish (Content "Hi 1!")
+    exchange <! Publish (ContentWithRouting ("Hi 2!", "a"))
+    exchange <! Publish (ContentWithRouting ("Hi 3!", "b"))
+    queue2 <! Unroute "b"
+    queue1 <! Route "b"
+    exchange <! Publish (ContentWithRouting ("Hi 4!", "b"))
+
+    disconnect [exchange; queue1; queue2]
+
+    validate accumulator1 ["Hi 4!"; "Hi 3!"; "Hi 2!"; "Hi 1!"]
+    validate accumulator2 ["Hi 1!"]
+    stopSystem system
+
+[<Test>]
+let ``Topic``() = 
     let (system, queueFactory) = startSystem ()
     let exchange = createExchange queueFactory "topic_logs" Topic
     let queue1 = createQueue queueFactory "topic_logs1" "topic_logs" Topic
