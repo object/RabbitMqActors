@@ -7,6 +7,8 @@ open QueueTypes
 open QueueActors
 open NUnit.Framework
 
+let wait (milliseconds : int) = System.Threading.Thread.Sleep(milliseconds)
+
 type AccumulatorRequest = Query
 
 let accumulatorActor (mailbox: Actor<obj>) =
@@ -26,8 +28,6 @@ let accumulatorActor (mailbox: Actor<obj>) =
     }
     loop ([])
 
-let wait numberOfSeconds = System.Threading.Thread.Sleep(numberOfSeconds * 1000)
-
 let startSystem () =
     let system = System.create "system" <| Configuration.load ()
     let queueFactory = spawn system "queues" (queueFactoryActor {Hostname="localhost";Username="guest";Password="guest"})
@@ -36,14 +36,16 @@ let startSystem () =
 let stopSystem (system : ActorSystem) =
     system.Terminate() |> Async.AwaitTask |> Async.RunSynchronously
 
-let createDirectQueue queueFactory queueName exchangeName =
-    let queueParams = { QueueName = queueName; ExchangeName = exchangeName; ExchangeType = Direct; Durable = false; Arguments = null }
-    let (queue : IActorRef) = queueFactory <? CreateExchange (sprintf "direct_%s" queueName, queueParams, false) |> Async.RunSynchronously
+let createQueue queueFactory queueName exchangeName exchangeType =
+    let queueParams = { QueueName = queueName; ExchangeName = exchangeName; ExchangeType = exchangeType; Durable = true; Arguments = null }
+    let (queue : IActorRef) = queueFactory <? CreateExchange (sprintf "queue_%s" queueName, queueParams, false) |> Async.RunSynchronously
+    wait 100
     queue
 
-let createFanoutExchange queueFactory exchangeName =
-    let exchangeParams = { QueueName = ""; ExchangeName = exchangeName; ExchangeType = Fanout; Durable = false; Arguments = null }
-    let (exchange : IActorRef) = queueFactory <? CreateExchange (sprintf "fanout_%s" exchangeName, exchangeParams, true) |> Async.RunSynchronously
+let createExchange queueFactory exchangeName exchangeType =
+    let exchangeParams = { QueueName = ""; ExchangeName = exchangeName; ExchangeType = exchangeType; Durable = true; Arguments = null }
+    let (exchange : IActorRef) = queueFactory <? CreateExchange (sprintf "exchange_%s" exchangeName, exchangeParams, true) |> Async.RunSynchronously
+    wait 100
     exchange
 
 let createSubscriber system subcriberName =
@@ -51,47 +53,90 @@ let createSubscriber system subcriberName =
     let subscriber = spawn system subcriberName (queueReaderActor<string> id accumulator)
     (subscriber, accumulator)
 
+let connect xs =
+    xs |> Seq.iter (fun x -> x <! Connect)
+
+let disconnect xs =
+    wait 1000
+    xs |> Seq.iter (fun x -> x <! Disconnect)
+
+let subscribe xs =
+    xs |> Seq.iter (fun (x,y) -> x <! Subscribe y)
+
+let validate accumulator msgs =
+    let (messages : string list) = accumulator <? Query |> Async.RunSynchronously
+    Assert.AreEqual(msgs, messages)
+
 [<Test>]
 let ``Work queue``() = 
     let (system, queueFactory) = startSystem ()
-    let queue = createDirectQueue queueFactory "hello" ""
+    let queue = createQueue queueFactory "hello" "" Direct
 
     let (subscriber, accumulator) = createSubscriber system "subscriber"
 
-    queue <! Connect
-    queue <! Subscribe subscriber
-    queue <! Publish (Content "Hi!")
-    wait 1
-    queue <! Disconnect
+    connect [queue]
+    subscribe [(queue, subscriber)]
 
-    let (messages : string list) = accumulator <? Query |> Async.RunSynchronously
-    Assert.AreEqual(["Hi!"], messages)
+    queue <! Publish (Content "Hi!")
+
+    disconnect [queue]
+
+    validate accumulator ["Hi!"]
     stopSystem system
 
 [<Test>]
 let ``Pub/sub``() = 
     let (system, queueFactory) = startSystem ()
-    let exchange = createFanoutExchange queueFactory "logs"
-    let queue1 = createDirectQueue queueFactory "logs1" "logs"
-    let queue2 = createDirectQueue queueFactory "logs2" "logs"
+    let exchange = createExchange queueFactory "fanout_logs" Fanout
+    let queue1 = createQueue queueFactory "fanout_logs1" "fanout_logs" Direct
+    let queue2 = createQueue queueFactory "fanout_logs2" "fanout_logs" Direct
 
     let (subscriber1, accumulator1) = createSubscriber system "subscriber1"
     let (subscriber2, accumulator2) = createSubscriber system "subscriber2"
 
-    exchange <! Connect
-    queue1 <! Connect
-    queue2 <! Connect
-    queue1 <! Subscribe subscriber1
-    exchange <! Publish (Content "Hi 1!")
-    queue2 <! Subscribe subscriber2
-    exchange <! Publish (Content "Hi 2!")
-    wait 1
-    exchange <! Disconnect
-    queue1 <! Disconnect
-    queue2 <! Disconnect
+    connect [exchange; queue1; queue2]
+    subscribe [(queue1, subscriber1); (queue2, subscriber2)]
 
-    let (messages : string list) = accumulator1 <? Query |> Async.RunSynchronously
-    Assert.AreEqual(["Hi 2!"; "Hi 1!"], messages)
-    let (messages : string list) = accumulator2 <? Query |> Async.RunSynchronously
-    Assert.AreEqual(["Hi 2!"; "Hi 1!"], messages)
+    exchange <! Publish (Content "Hi 1!")
+    exchange <! Publish (Content "Hi 2!")
+
+    disconnect [exchange; queue1; queue2]
+
+    validate accumulator1 ["Hi 2!"; "Hi 1!"]
+    validate accumulator2 ["Hi 2!"; "Hi 1!"]
+    stopSystem system
+
+[<Test>]
+let ``Routing``() = 
+    let (system, queueFactory) = startSystem ()
+    let exchange = createExchange queueFactory "topic_logs" Topic
+    let queue1 = createQueue queueFactory "topic_logs1" "topic_logs" Topic
+    let queue2 = createQueue queueFactory "topic_logs2" "topic_logs" Topic
+    let queue3 = createQueue queueFactory "topic_logs3" "topic_logs" Topic
+    let queue4 = createQueue queueFactory "topic_logs4" "topic_logs" Topic
+
+    let (subscriber1, accumulator1) = createSubscriber system "subscriber1"
+    let (subscriber2, accumulator2) = createSubscriber system "subscriber2"
+    let (subscriber3, accumulator3) = createSubscriber system "subscriber3"
+    let (subscriber4, accumulator4) = createSubscriber system "subscriber4"
+
+    connect [exchange; queue1; queue2; queue3; queue4]
+    subscribe [(queue1, subscriber1); (queue2, subscriber2); (queue3, subscriber3); (queue4, subscriber4)]
+
+    queue1 <! Route "x."
+    queue2 <! Route "x"
+    queue3 <! Route "y"
+    queue4 <! Route "#"
+
+    exchange <! Publish (Content "Hi 1!")
+    exchange <! Publish (ContentWithRouting ("Hi 2!", "x"))
+    exchange <! Publish (ContentWithRouting ("Hi 3!", "x.y"))
+    exchange <! Publish (ContentWithRouting ("Hi 4!", "y"))
+
+    disconnect [exchange; queue1; queue2; queue3; queue4]
+
+    validate accumulator1 ["Hi 1!"]
+    validate accumulator2 ["Hi 2!"; "Hi 1!"]
+    validate accumulator3 ["Hi 4!"; "Hi 1!"]
+    validate accumulator4 ["Hi 4!"; "Hi 3!"; "Hi 2!"; "Hi 1!"]
     stopSystem system
