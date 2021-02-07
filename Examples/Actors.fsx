@@ -1,6 +1,14 @@
-﻿#if INTERACTIVE
+﻿#r "nuget: Akka.FSharp"
+#r "nuget: RabbitMQ.Client"
+// #if INTERACTIVE
 
-#load "References.fsx"
+// #load "References.fsx"
+#load "../RabbitMqActors/Common.fs"
+#load "../RabbitMqActors/QueueTypes.fs"
+#load "../RabbitMqActors/QueueActors.fs"
+#load "DomainMessages.fs"
+#load "Client.fs"
+#load "Server.fs"
 
 open System
 open Akka.Actor
@@ -16,7 +24,7 @@ open Server
 
 let system = System.create "system" <| Configuration.load ()
 let server = spawn system "server" serverActor
-let queue_factory = spawn system "queues" (queueFactoryActor {Hostname="localhost";Username="guest";Password="guest"})
+let queue_factory = spawn system "queues" (queueFactoryActor {Hostname="localhost";Username="test";Password="test"})
 
 let client = spawn system "client" (clientActor server)
 let another_client = spawn system "another_client" (clientActor server)
@@ -109,5 +117,3 @@ topic_subscriber <! Disconnect
 
 topic_publisher <! Publish (ContentWithRouting ("Hi 6!", "x.y"))
 topic_publisher <! Disconnect
-
-#endif

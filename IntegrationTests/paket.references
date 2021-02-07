@@ -1,5 +1,5 @@
-Akka
 Akka.FSharp
 RabbitMQ.Client
 NUnit
 NUnit.Runners
+Unquote

@@ -20,12 +20,12 @@
 
         let declareQueue (channel : IModel) queueExchange =
             match queueExchange.QueueName with
-            | "" | null -> 
+            | "" | null ->
                 let queue = channel.QueueDeclare()
                 channel.QueueBind(queue.QueueName, queueExchange.ExchangeName, "")
-            | _ -> 
+            | _ ->
                 channel.QueueDeclare(queueExchange.QueueName, queueExchange.Durable, false, false, queueExchange.Arguments) |> ignore
-                if not(String.IsNullOrEmpty(queueExchange.ExchangeName)) then 
+                if not(String.IsNullOrEmpty(queueExchange.ExchangeName)) then
                     channel.QueueBind(queueExchange.QueueName, queueExchange.ExchangeName, "")
 
         let connect (prefetchCountPerChannel, prefetchCountPerConsumer) =
@@ -35,12 +35,12 @@
             if prefetchCountPerConsumer > 0us then channel.BasicQos(0u, prefetchCountPerConsumer, false)
 
             match queueExchange.ExchangeType with
-            | Direct -> 
+            | Direct ->
                 declareQueue channel queueExchange
-            | Topic -> 
+            | Topic ->
                 declareExchange channel queueExchange
                 declareQueue channel queueExchange
-            | Fanout -> 
+            | Fanout ->
                 declareExchange channel queueExchange
             (connection, channel)
 
@@ -53,32 +53,32 @@
                 match message with
                 | Content what -> (what, "")
                 | ContentWithRouting (what, routingKey)-> (what, routingKey)
-            let body = Encoding.UTF8.GetBytes(what)
+            let body = Encoding.UTF8.GetBytes what |> ReadOnlyMemory
             match queueExchange.ExchangeType with
             | ExchangeType.Direct -> channel.BasicPublish(queueExchange.ExchangeName, queueExchange.QueueName, null, body)
             | _ -> channel.BasicPublish(queueExchange.ExchangeName, routingKey, null, body)
 
         let receiveMessage (e : BasicDeliverEventArgs) =
-            let message = Encoding.UTF8.GetString(e.Body)
+            let message = Encoding.UTF8.GetString(e.Body.Span)
             mailbox.Self <! Receive (e.DeliveryTag, message)
 
-        let rec disconnected () = 
+        let rec disconnected () =
             actor {
                 let! message = mailbox.Receive ()
                 match message with
-                | Connect -> 
+                | Connect ->
                     let (connection, channel) = connect (0us, 0us)
                     return! connected (connection, channel)
 
-                | ConnectWithQos (prefetchCountPerChannel, prefetchCountPerConsumer) -> 
+                | ConnectWithQos (prefetchCountPerChannel, prefetchCountPerConsumer) ->
                     let (connection, channel) = connect (prefetchCountPerChannel, prefetchCountPerConsumer)
                     return! connected (connection, channel)
 
-                | _ -> 
+                | _ ->
                     printfn "Queue: invalid operation in disconnected state: %A" message
                     return! disconnected ()
             }
-        and connected (connection : IConnection, channel : IModel) = 
+        and connected (connection : IConnection, channel : IModel) =
             actor {
                 let! message = mailbox.Receive ()
                 match message with
@@ -101,28 +101,28 @@
 
                 | Nack tag -> channel.BasicNack(tag, false, false)
 
-                | _ -> 
+                | _ ->
                     printfn "Queue: invalid operation in connected state: %A" message
 
                 return! connected (connection, channel)
             }
-        and subscribed (connection : IConnection, channel : IModel, subscriber : IActorRef) = 
+        and subscribed (connection : IConnection, channel : IModel, subscriber : IActorRef) =
             actor {
                 let! message = mailbox.Receive ()
                 match message with
                 | Unsubscribe ->
                     return! connected (connection, channel)
-                
+
                 | Route routingKey ->
                     match queueExchange.ExchangeType with
                     | Direct -> printfn "Queue: Can not set routing for Direct exchange type."
-                    | _ -> 
+                    | _ ->
                         channel.QueueBind(queueExchange.QueueName, queueExchange.ExchangeName, routingKey)
 
                 | Unroute routingKey ->
                     match queueExchange.ExchangeType with
                     | Direct -> printfn "Queue: Can not set routing for Direct exchange type."
-                    | _ -> 
+                    | _ ->
                         channel.QueueUnbind(queueExchange.QueueName, queueExchange.ExchangeName, routingKey, null)
 
                 | Disconnect ->
@@ -141,7 +141,7 @@
 
                 | Nack tag -> channel.BasicNack(tag, false, false)
 
-                | _ -> 
+                | _ ->
                     printfn "Queue: invalid operation in connected state: %A" message
 
                 return! subscribed (connection, channel, subscriber)
@@ -150,9 +150,9 @@
         disconnected ()
 
     let queueFactoryActor (connectionDetails : ConnectionDetails) (mailbox: Actor<_>) =
-        let connectionFactory = new ConnectionFactory(HostName = connectionDetails.Hostname,
-                                                      UserName = connectionDetails.Username, 
-                                                      Password = connectionDetails.Password)
+        let connectionFactory = ConnectionFactory(HostName = connectionDetails.Hostname,
+                                                  UserName = connectionDetails.Username,
+                                                  Password = connectionDetails.Password)
         connectionFactory.AutomaticRecoveryEnabled <- true
 
         let rec loop (connectionFactory : ConnectionFactory) =
@@ -185,11 +185,11 @@
                 match message with
                 | StartWith queue ->
                     return! listening (queue)
-                | _ -> 
+                | _ ->
                     printfn "Client: invalid operation in starting state: %A" message
                 return! starting ()
             }
-        and listening (queue: IActorRef) = 
+        and listening (queue: IActorRef) =
             actor {
                 let! message = mailbox.Receive ()
                 match message with
