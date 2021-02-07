@@ -19,12 +19,13 @@ let accumulatorActor (mailbox: Actor<obj>) =
         | :? AccumulatorRequest -> mailbox.Sender() <! msgs; return! loop (msgs)
         | :? MessageEnvelope<string> as msg ->
             match msg with
-            | MessageWithAck(msg,queue,tag) -> 
+            | MessageWithAck(msg,queue,tag) ->
                 acknowledger.Forward <| QueueAck (queue, tag)
                 return! loop (msg :: msgs)
-            | Message msg -> 
+            | Message msg ->
                 return! loop (msg :: msgs)
-        return! loop (msgs)
+        | _ ->
+            return! loop (msgs)
     }
     loop ([])
 
@@ -63,12 +64,16 @@ let disconnect xs =
 let subscribe xs =
     xs |> Seq.iter (fun (x,y) -> x <! Subscribe y)
 
-let validate accumulator msgs =
-    let (messages : string list) = accumulator <? Query |> Async.RunSynchronously
-    Assert.AreEqual(msgs, messages)
+[<AutoOpen>]
+module Validator =
+    open Swensen.Unquote
+    let validate accumulator msgs =
+        let (messages : string list) = accumulator <? Query |> Async.RunSynchronously
+        test <@ msgs = messages @>
+        //Assert.AreEqual(msgs, messages)
 
 [<Test>]
-let ``Work queue``() = 
+let ``Work queue``() =
     let (system, queueFactory) = startSystem ()
     let queue = createQueue queueFactory "hello" "" Direct
 
@@ -85,7 +90,7 @@ let ``Work queue``() =
     stopSystem system
 
 [<Test>]
-let ``Pub/sub``() = 
+let ``Pub/sub``() =
     let (system, queueFactory) = startSystem ()
     let exchange = createExchange queueFactory "fanout_logs" Fanout
     let queue1 = createQueue queueFactory "fanout_logs1" "fanout_logs" Direct
@@ -107,7 +112,7 @@ let ``Pub/sub``() =
     stopSystem system
 
 [<Test>]
-let ``Routing``() = 
+let ``Routing``() =
     let (system, queueFactory) = startSystem ()
     let exchange = createExchange queueFactory "routing_logs" Topic
     let queue1 = createQueue queueFactory "routing_logs1" "routing_logs" Topic
@@ -136,7 +141,7 @@ let ``Routing``() =
     stopSystem system
 
 [<Test>]
-let ``Topic``() = 
+let ``Topic``() =
     let (system, queueFactory) = startSystem ()
     let exchange = createExchange queueFactory "topic_logs" Topic
     let queue1 = createQueue queueFactory "topic_logs1" "topic_logs" Topic

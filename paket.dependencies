@@ -1,13 +1,16 @@
-source https://nuget.org/api/v2
+source https://api.nuget.org/v3/index.json
+storage none
 
-nuget Fake
-nuget Akka
 nuget Akka.FSharp
-nuget FsPickler
-nuget FSPowerPack.Core.Community
-nuget FSPowerPack.Linq.Community
-nuget Newtonsoft.Json
 nuget RabbitMQ.Client
-nuget System.Collections.Immutable
 nuget NUnit
 nuget NUnit.Runners
+nuget Unquote
+
+// [ FAKE GROUP ]
+group Build
+    storage none
+    source https://api.nuget.org/v3/index.json
+    nuget Fake.DotNet.Cli
+    nuget Fake.IO.FileSystem
+    nuget Fake.Core.Target

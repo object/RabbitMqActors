@@ -1,34 +1,34 @@
-// include Fake libs
-#r "./packages/FAKE/tools/FakeLib.dll"
+#load ".fake/build.fsx/intellisense.fsx"
+open Fake.Core
+open Fake.DotNet
+open Fake.IO
+open Fake.IO.FileSystemOperators
+open Fake.IO.Globbing.Operators
+open Fake.Core.TargetOperators
 
-open Fake
-open Fake.Testing
-open System.IO
+Target.initEnvironment ()
 
-// Directories
-let curDir = Directory.GetCurrentDirectory()
-let appDir = "build/src/"
-
-// Filesets
-let appReferences = !! "RabbitMqActors/**/*.fsproj"
-
-// Properties
-let buildProps = [("SolutionDir", curDir)]
-
-// Targets
-Target "Clean" (fun _ ->
-  CleanDirs [appDir]
+Target.create "Clean" (fun _ ->
+    !! "**/bin"
+    ++ "**/obj"
+    |> Shell.cleanDirs
 )
 
-Target "Build" (fun _ ->
-  // compile all projects below app/
-  MSBuildDebug appDir "Build" appReferences
-  |> Log "AppBuild-Output: "
+Target.create "Build" (fun _ ->
+    // !! "**/*.*proj"
+    // |> Seq.iter (DotNet.build id)
+    DotNet.build id "."
 )
 
-// Build order
+Target.create "Test" (fun _ ->
+    // !! "**/*.*proj"
+    // |> Seq.iter (DotNet.test id)
+    DotNet.test id "."
+)
+
+
 "Clean"
   ==> "Build"
+  ==> "Test"
 
-// start build
-RunTargetOrDefault "Build"
+Target.runOrDefault "Build"
